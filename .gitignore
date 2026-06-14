@@ -32,5 +32,6 @@ go.work.sum
 # .vscode/
 
 # Repomix (For LLMs)
-repomix-output.xml
-
+repomix/
+repomix.config.json
+.repomixignore
