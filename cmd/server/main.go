@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/PeshawaAziz/url-shortener/internal/config"
+	"github.com/PeshawaAziz/url-shortener/pkg/database"
 )
 
 func main() {
@@ -16,6 +17,20 @@ func main() {
 	}
 
 	logger := setupLogger(cfg.Server.Environment)
+
+	db, err := database.NewPostgresDB(cfg.Database)
+	if err != nil {
+		logger.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("database connected")
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.Error("failed to get underlying sql.DB", "error", err)
+		os.Exit(1)
+	}
+	defer sqlDB.Close()
 
 	logger.Info("starting server",
 		"environment", cfg.Server.Environment,
