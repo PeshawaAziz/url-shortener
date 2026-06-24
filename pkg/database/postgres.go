@@ -8,6 +8,8 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/PeshawaAziz/url-shortener/internal/config"
+	"github.com/PeshawaAziz/url-shortener/internal/domain/url"
+	"github.com/PeshawaAziz/url-shortener/internal/domain/user"
 )
 
 func NewPostgresDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
@@ -38,7 +40,9 @@ func NewPostgresDB(cfg config.DatabaseConfig) (*gorm.DB, error) {
 func runMigrations(db *gorm.DB) error {
 	log.Println("running database migrations...")
 	err := db.AutoMigrate(
-	// MODELS
+		&user.User{},
+		&url.URL{},
+		&url.Click{},
 	)
 	if err != nil {
 		return err
