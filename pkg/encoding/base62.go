@@ -34,7 +34,7 @@ func DecodeBase62(s string) uint64 {
 		case 'A' <= c && c <= 'Z':
 			val = int(c-'A') + 36
 		default:
-			return 0 // Invalid character
+			return 0
 		}
 		num = num*62 + uint64(val)
 	}
