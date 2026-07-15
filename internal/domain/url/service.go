@@ -11,27 +11,48 @@ import (
 const maxGenerationRetries = 5
 
 type ShortenerService struct {
-	repo      URLRepository
-	generator SlugGenerator
-	bloom     BloomChecker
+	repo        URLRepository
+	generator   SlugGenerator
+	bloom       BloomChecker
+	reserved    ReservedSlugChecker
+	idempotency IdempotencyStore
 }
 
-func NewShortenerService(repo URLRepository, gen SlugGenerator, bloom BloomChecker) *ShortenerService {
+func NewShortenerService(
+	repo URLRepository,
+	gen SlugGenerator,
+	bloom BloomChecker,
+	reserved ReservedSlugChecker,
+	idempotency IdempotencyStore,
+) *ShortenerService {
 	return &ShortenerService{
-		repo:      repo,
-		generator: gen,
-		bloom:     bloom,
+		repo:        repo,
+		generator:   gen,
+		bloom:       bloom,
+		reserved:    reserved,
+		idempotency: idempotency,
 	}
 }
 
 type ShortenURLInput struct {
-	TenantID    uuid.UUID
-	UserID      uuid.UUID
-	OriginalURL string
-	DesiredSlug string // Optional. If empty, auto-generate.
+	TenantID       uuid.UUID
+	UserID         uuid.UUID
+	OriginalURL    string
+	DesiredSlug    string
+	IdempotencyKey string
 }
 
 func (s *ShortenerService) ShortenURL(ctx context.Context, input ShortenURLInput) (*URL, error) {
+	if input.IdempotencyKey != "" {
+		existingID, err := s.idempotency.Get(ctx, input.IdempotencyKey)
+		if err == nil {
+			existingURL, err := s.repo.GetByID(ctx, existingID)
+			if err == nil {
+				return existingURL, nil
+			}
+		}
+	}
+
 	dest, err := NewOriginalURL(input.OriginalURL)
 	if err != nil {
 		return nil, ErrInvalidURL
@@ -40,7 +61,7 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, input ShortenURLInput
 	var slug Slug
 
 	if input.DesiredSlug != "" {
-		slug, err = NewSlug(input.DesiredSlug)
+		slug, err = NewSlug(ctx, input.DesiredSlug, s.reserved)
 		if err != nil {
 			return nil, ErrInvalidSlug
 		}
@@ -67,6 +88,7 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, input ShortenURLInput
 	err = s.repo.Save(ctx, urlEntity)
 	if err != nil {
 		if errors.Is(err, ErrSlugConflict) {
+			// Race condition: someone grabbed the slug between our check and save.
 			if input.DesiredSlug == "" {
 				// If auto-gen, we can safely retry
 				return s.ShortenURL(ctx, input)
@@ -77,6 +99,10 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, input ShortenURLInput
 	}
 
 	s.bloom.Add(ctx, string(slug))
+
+	if input.IdempotencyKey != "" {
+		_ = s.idempotency.Save(ctx, input.IdempotencyKey, urlEntity.ID)
+	}
 
 	return urlEntity, nil
 }
