@@ -1,4 +1,4 @@
-package url
+package tag
 
 import (
 	"gorm.io/gorm"

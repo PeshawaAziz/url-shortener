@@ -1,4 +1,4 @@
-package url
+package clickevent
 
 import (
 	"gorm.io/gorm"

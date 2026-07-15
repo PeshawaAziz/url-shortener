@@ -1,4 +1,4 @@
-package url
+package auditlog
 
 import (
 	"gorm.io/gorm"
