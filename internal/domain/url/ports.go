@@ -21,3 +21,12 @@ type URLRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*URL, error)
 	Update(ctx context.Context, u *URL) error
 }
+
+type ReservedSlugChecker interface {
+	IsReserved(ctx context.Context, slug string) bool
+}
+
+type IdempotencyStore interface {
+	Get(ctx context.Context, key string) (uuid.UUID, error)
+	Save(ctx context.Context, key string, urlID uuid.UUID) error
+}
