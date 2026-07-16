@@ -20,6 +20,7 @@ type URLRepository interface {
 	Save(ctx context.Context, u *URL) error
 	GetByID(ctx context.Context, id uuid.UUID) (*URL, error)
 	Update(ctx context.Context, u *URL) error
+	GetDeletedBySlug(ctx context.Context, tenantID uuid.UUID, slug string) (*URL, error)
 }
 
 type ReservedSlugChecker interface {
