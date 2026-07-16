@@ -14,6 +14,14 @@ const (
 	StatePaused   URLState = "paused"
 	StateExpired  URLState = "expired"
 	StateArchived URLState = "archived"
+	StateDeleted  URLState = "deleted"
+)
+
+type RedirectType string
+
+const (
+	RedirectTypePermanent RedirectType = "permenant"
+	RedirectTypeTemporary RedirectType = "temporary"
 )
 
 type URL struct {
@@ -26,25 +34,27 @@ type URL struct {
 	ExpiresAt    *time.Time
 	ClickCap     *int64
 	ClickCount   int64
-	PasswordHash string // Empty means no password
+	PasswordHash string       // Empty means no password
+	RedirectType RedirectType // "permanent" (301) or "temporary" (302)
 
-	State        URLState
-	RedirectType string `json:"redirect_type"` // "permanent" (301) or "temporary" (302)
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	State     URLState
+	DeletedAt *time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func NewURL(tenantID, userID uuid.UUID, slug Slug, dest OriginalURL) *URL {
 	now := time.Now()
 	return &URL{
-		ID:          uuid.New(),
-		TenantID:    tenantID,
-		UserID:      userID,
-		Slug:        slug,
-		OriginalURL: dest,
-		State:       StateActive,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:           uuid.New(),
+		TenantID:     tenantID,
+		UserID:       userID,
+		Slug:         slug,
+		OriginalURL:  dest,
+		RedirectType: RedirectTypeTemporary,
+		State:        StateActive,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 }
 
@@ -61,12 +71,45 @@ func (u *URL) CanRedirect(now time.Time) bool {
 	return true
 }
 
+func (u *URL) IsDeleted() bool {
+	return u.State == StateDeleted || u.DeletedAt != nil
+}
+
 func (u *URL) Pause() error {
 	if u.State != StateActive {
 		return errors.New("only active urls can be paused")
 	}
 	u.State = StatePaused
 	u.UpdatedAt = time.Now()
+	return nil
+}
+
+func (u *URL) Resume() error {
+	if u.State != StatePaused {
+		return errors.New("only paused urls can be resumed")
+	}
+	u.State = StateActive
+	u.UpdatedAt = time.Now()
+	return nil
+}
+
+func (u *URL) Archive() error {
+	if u.State == StateDeleted {
+		return errors.New("cannot archive a deleted url")
+	}
+	u.State = StateArchived
+	u.UpdatedAt = time.Now()
+	return nil
+}
+
+func (u *URL) SoftDelete() error {
+	if u.State == StateDeleted {
+		return errors.New("already deleted")
+	}
+	now := time.Now()
+	u.State = StateDeleted
+	u.DeletedAt = &now
+	u.UpdatedAt = now
 	return nil
 }
 
