@@ -48,3 +48,16 @@ type ClickMetadata struct {
 	UserAgent string
 	Referer   string
 }
+
+type PasswordHasher interface {
+	Hash(password string) (string, error)
+	Compare(hash, password string) bool
+}
+
+type RateLimiter interface {
+	Allow(ctx context.Context, tenantID uuid.UUID, slug string, limit int) (bool, error)
+}
+
+type ABTestHasher interface {
+	Bucket(key string, buckets int) int
+}
