@@ -74,6 +74,11 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, input ShortenURLInput
 			if !errors.Is(err, ErrURLNotFound) {
 				return nil, err
 			}
+
+			deletedURL, err := s.repo.GetDeletedBySlug(ctx, input.TenantID, string(slug))
+			if err == nil && deletedURL != nil {
+				return nil, ErrSlugConflict
+			}
 		}
 	} else {
 		var err error
