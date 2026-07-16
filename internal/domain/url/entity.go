@@ -31,11 +31,13 @@ type URL struct {
 	Slug        Slug
 	OriginalURL OriginalURL
 
-	ExpiresAt    *time.Time
-	ClickCap     *int64
-	ClickCount   int64
-	PasswordHash string       // Empty means no password
-	RedirectType RedirectType // "permanent" (301) or "temporary" (302)
+	ExpiresAt      *time.Time
+	ClickCap       *int64
+	ClickCount     int64
+	PasswordHash   string       // Empty means no password
+	RedirectType   RedirectType // "permanent" (301) or "temporary" (302)
+	RoutingConfig  RoutingConfig
+	RateLimitPerHr *int
 
 	State     URLState
 	DeletedAt *time.Time
@@ -116,4 +118,12 @@ func (u *URL) SoftDelete() error {
 func (u *URL) IncrementClick() {
 	u.ClickCount++
 	u.UpdatedAt = time.Now()
+}
+
+func (u *URL) IsPasswordProtected() bool {
+	return u.PasswordHash != ""
+}
+
+func (u *URL) HasRateLimit() bool {
+	return u.RateLimitPerHr != nil && *u.RateLimitPerHr > 0
 }
