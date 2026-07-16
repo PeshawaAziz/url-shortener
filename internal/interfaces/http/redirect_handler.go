@@ -1,8 +1,6 @@
 package http
 
 import (
-	"net/http"
-
 	"github.com/PeshawaAziz/url-shortener/internal/domain/url"
 
 	"github.com/gin-gonic/gin"
@@ -11,49 +9,71 @@ import (
 
 type RedirectHandler struct {
 	redirectSvc *url.RedirectService
+	passwordSvc *url.PasswordService
 }
 
-func NewRedirectHandler(svc *url.RedirectService) *RedirectHandler {
-	return &RedirectHandler{redirectSvc: svc}
+func NewRedirectHandler(rs *url.RedirectService, ps *url.PasswordService) *RedirectHandler {
+	return &RedirectHandler{redirectSvc: rs, passwordSvc: ps}
 }
 
-// HandleRedirect handles GET /:slug
 func (h *RedirectHandler) HandleRedirect(c *gin.Context) {
 	slug := c.Param("slug")
+	tenantID, _ := uuid.Parse(c.GetHeader("X-Tenant-ID"))
 
-	tenantIDStr := c.GetHeader("X-Tenant-ID")
-	tenantID, err := uuid.Parse(tenantIDStr)
-	if err != nil {
-		tenantID = uuid.New()
+	reqCtx := url.RequestContext{
+		IPAddress:   c.ClientIP(),
+		UserAgent:   c.Request.UserAgent(),
+		CountryCode: "US",
+		DeviceType:  "mobile",
 	}
 
-	meta := url.ClickMetadata{
-		IPAddress: c.ClientIP(),
-		UserAgent: c.Request.UserAgent(),
-		Referer:   c.Request.Referer(),
-	}
-
-	urlEntity, err := h.redirectSvc.Resolve(c.Request.Context(), tenantID, slug, meta)
+	urlEntity, finalDest, err := h.redirectSvc.Resolve(c.Request.Context(), tenantID, slug, reqCtx)
 	if err != nil {
 		if err == url.ErrURLNotFound {
-			c.Data(http.StatusNotFound, "text/html; charset=utf-8", []byte("<h1>404 - Link Not Found</h1><p>The link you clicked does not exist.</p>"))
+			c.Data(404, "text/html", []byte("404 Not Found"))
 			return
 		}
-		if err == url.ErrLinkExpired {
-			c.Data(http.StatusGone, "text/html; charset=utf-8", []byte("<h1>410 - Link Expired</h1>"))
+		if err == url.ErrRateLimited {
+			c.Data(429, "text/html", []byte("429 Too Many Requests - Quota Exceeded"))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		if err == url.ErrPasswordRequired {
+			cookieName := "unlock_" + slug
+			cookie, err := c.Cookie(cookieName)
+			if err != nil || cookie != "valid" {
+				c.JSON(401, gin.H{"error": "password required"})
+				return
+			}
+			finalDest = string(urlEntity.OriginalURL)
+		}
+	}
+
+	statusCode := 302
+	if urlEntity.RedirectType == "permanent" {
+		statusCode = 301
+	}
+	c.Redirect(statusCode, finalDest)
+}
+
+// HandleUnlock handles POST /v1/links/:slug/unlock (4.16)
+func (h *RedirectHandler) HandleUnlock(c *gin.Context) {
+	slug := c.Param("slug")
+	tenantID, _ := uuid.Parse(c.GetHeader("X-Tenant-ID"))
+
+	var body struct {
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": "invalid request"})
 		return
 	}
 
-	statusCode := http.StatusFound // 302 (Temporary)
-	if urlEntity.RedirectType == "permanent" {
-		statusCode = http.StatusMovedPermanently // 301 (Permanent)
+	valid, err := h.passwordSvc.VerifyPassword(c.Request.Context(), tenantID, slug, body.Password)
+	if err != nil || !valid {
+		c.JSON(401, gin.H{"error": "invalid password"})
+		return
 	}
 
-	c.Header("Referrer-Policy", "no-referrer")
-	c.Header("X-Robots-Tag", "noindex, nofollow")
-
-	c.Redirect(statusCode, string(urlEntity.OriginalURL))
+	c.SetCookie("unlock_"+slug, "valid", 3600, "/", "", false, true)
+	c.JSON(200, gin.H{"status": "unlocked"})
 }
