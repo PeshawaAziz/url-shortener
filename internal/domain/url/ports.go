@@ -30,3 +30,19 @@ type IdempotencyStore interface {
 	Get(ctx context.Context, key string) (uuid.UUID, error)
 	Save(ctx context.Context, key string, urlID uuid.UUID) error
 }
+
+type URLCache interface {
+	Get(ctx context.Context, tenantID uuid.UUID, slug string) (*URL, error)
+	Set(ctx context.Context, u *URL) error
+	SetNegative(ctx context.Context, tenantID uuid.UUID, slug string) error
+}
+
+type ClickReporter interface {
+	RecordClick(ctx context.Context, u *URL, metadata ClickMetadata)
+}
+
+type ClickMetadata struct {
+	IPAddress string
+	UserAgent string
+	Referer   string
+}

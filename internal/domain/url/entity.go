@@ -28,9 +28,10 @@ type URL struct {
 	ClickCount   int64
 	PasswordHash string // Empty means no password
 
-	State     URLState
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	State        URLState
+	RedirectType string `json:"redirect_type"` // "permanent" (301) or "temporary" (302)
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 func NewURL(tenantID, userID uuid.UUID, slug Slug, dest OriginalURL) *URL {
