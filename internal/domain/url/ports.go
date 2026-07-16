@@ -21,6 +21,7 @@ type URLRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*URL, error)
 	Update(ctx context.Context, u *URL) error
 	GetDeletedBySlug(ctx context.Context, tenantID uuid.UUID, slug string) (*URL, error)
+	ListActiveForSweep(ctx context.Context, limit, offset int) ([]*URL, error)
 }
 
 type ReservedSlugChecker interface {
