@@ -38,3 +38,8 @@ type RefreshTokenMetadata struct {
 	ExpiresAt time.Time
 	Used      bool
 }
+
+type VerificationTokenIssuer interface {
+	Issue(userID uuid.UUID, email string) (string, time.Time, error)
+	Validate(tokenString string) (userID uuid.UUID, email string, err error)
+}
