@@ -1,11 +1,12 @@
-package user
+package auth
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/PeshawaAziz/url-shortener/internal/domain/url" // for PasswordHasher
+	"github.com/PeshawaAziz/url-shortener/internal/domain/shared" // for PasswordHasher
+	"github.com/PeshawaAziz/url-shortener/internal/domain/user"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -19,20 +20,13 @@ type Config struct {
 }
 
 type UserAuthService struct {
-	repo     UserRepository
-	hasher   url.PasswordHasher
-	tokenSvc TokenService // from auth package (our JWT token service)
+	repo     user.UserRepository
+	hasher   shared.PasswordHasher
+	tokenSvc TokenService
 	config   Config
 }
 
-// TokenService is the interface we need for issuing auth tokens (defined in auth package).
-// We import it here to avoid circular dependencies. It's identical to auth.TokenService.
-type TokenService interface {
-	GenerateAccessToken(ctx context.Context, userID, tenantID uuid.UUID) (string, time.Time, error)
-	GenerateRefreshToken(ctx context.Context, userID, tenantID uuid.UUID) (string, string, time.Time, error)
-}
-
-func NewUserAuthService(repo UserRepository, hasher url.PasswordHasher, tokenSvc TokenService, config Config) *UserAuthService {
+func NewUserAuthService(repo user.UserRepository, hasher shared.PasswordHasher, tokenSvc TokenService, config Config) *UserAuthService {
 	return &UserAuthService{
 		repo:     repo,
 		hasher:   hasher,
@@ -41,7 +35,6 @@ func NewUserAuthService(repo UserRepository, hasher url.PasswordHasher, tokenSvc
 	}
 }
 
-// RegisterInput holds the data needed to register a new user.
 type RegisterInput struct {
 	TenantID    uuid.UUID
 	Email       string
@@ -49,33 +42,26 @@ type RegisterInput struct {
 	Password    string
 }
 
-// RegisterOutput holds the results of a successful registration.
 type RegisterOutput struct {
-	User *User
-	// VerificationToken is only set if email verification is enabled.
+	User              *user.User
 	VerificationToken string
 }
 
-// Register creates a new user account. If email verification is enabled,
-// it returns a token that must be sent to the user's email.
 func (s *UserAuthService) Register(ctx context.Context, input RegisterInput) (*RegisterOutput, error) {
-	// Check if email already exists in the tenant
 	existing, err := s.repo.FindByEmail(ctx, input.TenantID, input.Email)
-	if err != nil && err != ErrUserNotFound {
+	if err != nil && err != user.ErrUserNotFound {
 		return nil, fmt.Errorf("error checking email: %w", err)
 	}
 	if existing != nil {
-		return nil, ErrEmailAlreadyTaken
+		return nil, user.ErrEmailAlreadyTaken
 	}
 
-	// Hash password
 	hash, err := s.hasher.Hash(input.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Create user entity
-	u := NewUser(input.TenantID, input.Email, input.DisplayName, AuthProviderEmail, input.Email)
+	u := user.NewUser(input.TenantID, input.Email, input.DisplayName, user.AuthProviderEmail, input.Email)
 	u.SetPasswordHash(hash)
 
 	if s.config.SkipEmailVerification {
@@ -89,7 +75,6 @@ func (s *UserAuthService) Register(ctx context.Context, input RegisterInput) (*R
 	output := &RegisterOutput{User: u}
 
 	if !s.config.SkipEmailVerification {
-		// Generate verification token (JWT)
 		token, err := s.generateVerificationToken(u.ID, u.Email)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate verification token: %w", err)
@@ -110,27 +95,27 @@ type LoginOutput struct {
 	AccessToken  string
 	RefreshToken string
 	ExpiresAt    time.Time
-	User         *User
+	User         *user.User
 }
 
 func (s *UserAuthService) Login(ctx context.Context, input LoginInput) (*LoginOutput, error) {
 	u, err := s.repo.FindByEmail(ctx, input.TenantID, input.Email)
 	if err != nil {
-		return nil, ErrInvalidCredentials
+		return nil, user.ErrInvalidCredentials
 	}
 
 	if u.IsLocked() {
-		return nil, ErrAccountLocked
+		return nil, user.ErrAccountLocked
 	}
 
 	if !s.config.SkipEmailVerification && !u.IsEmailVerified {
-		return nil, ErrEmailNotVerified
+		return nil, user.ErrEmailNotVerified
 	}
 
 	if !u.HasPassword() || !s.hasher.Compare(*u.PasswordHash, input.Password) {
 		u.RecordFailedLogin(s.config.MaxLoginAttempts, s.config.LockDuration)
 		_ = s.repo.Update(ctx, u) // ignore error to not leak info
-		return nil, ErrInvalidCredentials
+		return nil, user.ErrInvalidCredentials
 	}
 
 	u.ClearLockout()
