@@ -172,6 +172,18 @@ func randomBytes() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+func (s *JWTTokenService) RevokeRefreshToken(ctx context.Context, rawRefreshToken string) error {
+	hashed := hashToken(rawRefreshToken)
+	meta, err := s.refreshTokenStore.Get(ctx, hashed)
+	if err != nil {
+		if err == auth.ErrTokenNotFound {
+			return nil
+		}
+		return err
+	}
+	return s.refreshTokenStore.RevokeFamily(ctx, meta.FamilyID)
+}
+
 func hashToken(raw string) string {
 	h := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(h[:])

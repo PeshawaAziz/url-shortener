@@ -56,7 +56,7 @@ func (h *TokenHandler) Refresh(c *gin.Context) {
 func (h *TokenHandler) Logout(c *gin.Context) {
 	refreshToken, err := c.Cookie("refresh_token")
 	if err == nil && refreshToken != "" {
-		_ = h.tokenService.RevokeRefreshTokenFamily(c.Request.Context(), refreshToken)
+		_ = h.tokenService.RevokeRefreshToken(c.Request.Context(), refreshToken)
 	}
 	c.SetCookie("refresh_token", "", -1, "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})

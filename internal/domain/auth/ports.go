@@ -13,6 +13,7 @@ type TokenService interface {
 	ValidateAccessToken(ctx context.Context, tokenString string) (*AccessTokenClaims, error)
 	RotateRefreshToken(ctx context.Context, rawRefreshToken string) (string, string, time.Time, error)
 	RevokeRefreshTokenFamily(ctx context.Context, familyID string) error
+	RevokeRefreshToken(ctx context.Context, rawRefreshToken string) error
 }
 
 type RefreshTokenStore interface {
