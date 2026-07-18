@@ -114,7 +114,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"access_token": output.AccessToken,
 		"token_type":   "Bearer",
-		"expires_in":   int(time.Until(output.ExpiresAt).Seconds()),
+		"expires_in":   int(time.Until(output.AccessExpiry).Seconds()),
 		"user_id":      output.User.ID.String(),
 	})
 }

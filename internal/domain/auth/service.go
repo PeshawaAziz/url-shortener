@@ -99,6 +99,7 @@ type LoginInput struct {
 
 type LoginOutput struct {
 	AccessToken  string
+	AccessExpiry time.Time
 	RefreshToken string
 	ExpiresAt    time.Time
 	User         *user.User
@@ -129,7 +130,7 @@ func (s *UserAuthService) Login(ctx context.Context, input LoginInput) (*LoginOu
 		return nil, fmt.Errorf("failed to update user after login: %w", err)
 	}
 
-	accessToken, _, err := s.tokenSvc.GenerateAccessToken(ctx, u.ID, u.TenantID)
+	accessToken, accessExp, err := s.tokenSvc.GenerateAccessToken(ctx, u.ID, u.TenantID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
@@ -140,6 +141,7 @@ func (s *UserAuthService) Login(ctx context.Context, input LoginInput) (*LoginOu
 
 	return &LoginOutput{
 		AccessToken:  accessToken,
+		AccessExpiry: accessExp,
 		RefreshToken: refreshToken,
 		ExpiresAt:    refreshExp,
 		User:         u,
