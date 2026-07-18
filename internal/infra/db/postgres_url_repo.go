@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/PeshawaAziz/url-shortener/internal/domain/url"
@@ -157,12 +156,4 @@ func (r *PostgresURLRepository) ListActiveForSweep(ctx context.Context, limit in
 		urls = append(urls, toDomain(&m))
 	}
 	return urls, nil
-}
-
-// isDuplicateKeyError checks for Postgres SQLSTATE 23505
-func isDuplicateKeyError(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(err.Error(), "23505")
 }
