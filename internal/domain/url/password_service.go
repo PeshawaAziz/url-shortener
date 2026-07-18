@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 
+	"github.com/PeshawaAziz/url-shortener/internal/domain/shared"
 	"github.com/google/uuid"
 )
 
 type PasswordService struct {
 	repo   URLRepository
-	hasher PasswordHasher
+	hasher shared.PasswordHasher
 }
 
-func NewPasswordService(repo URLRepository, hasher PasswordHasher) *PasswordService {
+func NewPasswordService(repo URLRepository, hasher shared.PasswordHasher) *PasswordService {
 	return &PasswordService{repo: repo, hasher: hasher}
 }
 

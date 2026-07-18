@@ -49,11 +49,6 @@ type ClickMetadata struct {
 	Referer   string
 }
 
-type PasswordHasher interface {
-	Hash(password string) (string, error)
-	Compare(hash, password string) bool
-}
-
 type RateLimiter interface {
 	Allow(ctx context.Context, tenantID uuid.UUID, slug string, limit int) (bool, error)
 }
