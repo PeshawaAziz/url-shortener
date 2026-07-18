@@ -140,6 +140,11 @@ func (s *JWTTokenService) RotateRefreshToken(ctx context.Context, rawRefreshToke
 	}
 	newHashed := hashToken(newRawToken)
 
+	newAccessToken, _, err := s.GenerateAccessToken(ctx, oldMeta.UserID, oldMeta.TenantID)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
 	newMeta := auth.RefreshTokenMetadata{
 		UserID:    oldMeta.UserID,
 		TenantID:  oldMeta.TenantID,
@@ -152,7 +157,7 @@ func (s *JWTTokenService) RotateRefreshToken(ctx context.Context, rawRefreshToke
 		return "", "", time.Time{}, fmt.Errorf("failed to store new refresh token: %w", err)
 	}
 
-	return newRawToken, oldMeta.FamilyID, newMeta.ExpiresAt, nil
+	return newAccessToken, newRawToken, newMeta.ExpiresAt, nil
 }
 
 func (s *JWTTokenService) RevokeRefreshTokenFamily(ctx context.Context, familyID string) error {
