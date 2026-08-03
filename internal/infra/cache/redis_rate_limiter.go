@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -16,7 +17,7 @@ func NewRedisRateLimiter(client *redis.Client) *RedisRateLimiter {
 	return &RedisRateLimiter{client: client}
 }
 
-func (r *RedisRateLimiter) Allow(ctx context.Context, tenantID, slug string, limit int) (bool, error) {
+func (r *RedisRateLimiter) Allow(ctx context.Context, tenantID uuid.UUID, slug string, limit int) (bool, error) {
 	key := fmt.Sprintf("ratelimit:%s:%s", tenantID, slug)
 	now := time.Now().Unix()
 	windowStart := now - 3600

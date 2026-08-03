@@ -1,12 +1,14 @@
 package http
 
 import (
-	"net/http"
-
-	"github.com/PeshawaAziz/url-shortener/internal/domain/url"
+  "net/http"
+	
+  "github.com/PeshawaAziz/url-shortener/internal/domain/url"
+  "github.com/PeshawaAziz/url-shortener/internal/domain/url"
 	"github.com/PeshawaAziz/url-shortener/pkg/httputil"
 
-	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+  "github.com/gin-gonic/gin"
 )
 
 type RedirectHandler struct {
@@ -20,11 +22,7 @@ func NewRedirectHandler(rs *url.RedirectService, ps *url.PasswordService) *Redir
 
 func (h *RedirectHandler) HandleRedirect(c *gin.Context) {
 	slug := c.Param("slug")
-	tenantID, err := httputil.GetTenant(c)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "tenant not found"})
-		return
-	}
+	tenantID, _ := uuid.Parse(c.GetHeader("X-Tenant-ID"))
 
 	reqCtx := url.RequestContext{
 		IPAddress:   c.ClientIP(),
@@ -61,13 +59,10 @@ func (h *RedirectHandler) HandleRedirect(c *gin.Context) {
 	c.Redirect(statusCode, finalDest)
 }
 
+// HandleUnlock handles POST /v1/links/:slug/unlock (4.16)
 func (h *RedirectHandler) HandleUnlock(c *gin.Context) {
 	slug := c.Param("slug")
-	tenantID, err := httputil.GetTenant(c)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "tenant not found"})
-		return
-	}
+	tenantID, _ := uuid.Parse(c.GetHeader("X-Tenant-ID"))
 
 	var body struct {
 		Password string `json:"password"`
