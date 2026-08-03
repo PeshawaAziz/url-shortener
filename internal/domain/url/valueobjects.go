@@ -12,9 +12,9 @@ type Slug string
 
 var slugRegex = regexp.MustCompile(`^[a-z0-9][a-z0-9-_]{1,62}[a-z0-9]$`)
 
-var reservedSlugs = map[string]bool{
-	"api": true, "admin": true, "login": true, "auth": true, "www": true,
-}
+// var reservedSlugs = map[string]bool{
+// 	"api": true, "admin": true, "login": true, "auth": true, "www": true,
+// }
 
 var homoglyphs = map[string]string{
 	"0": "o",

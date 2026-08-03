@@ -1,14 +1,9 @@
 package http
 
 import (
-  "net/http"
-	
-  "github.com/PeshawaAziz/url-shortener/internal/domain/url"
-  "github.com/PeshawaAziz/url-shortener/internal/domain/url"
-	"github.com/PeshawaAziz/url-shortener/pkg/httputil"
-
+	"github.com/PeshawaAziz/url-shortener/internal/domain/url"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-  "github.com/gin-gonic/gin"
 )
 
 type RedirectHandler struct {
